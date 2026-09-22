@@ -27,6 +27,16 @@ npm run check:release-content
 
 `check:release-content`は、公開前の現在は理由付きで失敗するのが正しい状態です。Lighthouseの正式ゲートは公開値を反映後、CIで全URLをPC・スマートフォン各5回測定します。
 
+### OpenAI Sitesプレビュー
+
+Cloudflare本番公開とは分離して、公開前の成果物を所有者限定のOpenAI Sitesプレビューへ配置できます。
+
+```sh
+SITES_ORIGIN=https://<Sitesから発行されたURL> npm run build:sites
+```
+
+成果物は`dist/client`（静的ファイル）と`dist/server/index.js`（Static Assetsへ委譲するWorker）へ生成されます。Sitesへの配置は`publicationStatus: "draft"`、検索除外、公開前バナー、`check:release-content`の停止条件を変更しません。
+
 ## 構成
 
 - `src/data/site.ts`: 公開状態、会社情報、origin、ロゴ、解析、法的文書の日付

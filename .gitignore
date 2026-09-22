@@ -1,6 +1,7 @@
 node_modules/
 .astro/
 dist/
+.sites-static/
 .wrangler/
 .wrangler-config/
 artifacts/
