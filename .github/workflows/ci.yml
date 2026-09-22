@@ -139,3 +139,19 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: artifacts/lighthouse
+
+  release-readiness:
+    name: Production release readiness
+    needs: validate
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every production value and release contract
+        env:
+          RELEASE_READY: ${{ needs.validate.outputs.release_ready }}
+        run: |
+          if [[ "$RELEASE_READY" != "true" ]]; then
+            echo "::error::Production release content is incomplete. Review the release-content notice in the validate job."
+            exit 1
+          fi
