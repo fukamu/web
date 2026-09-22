@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+artifacts/
+playwright-report/
+test-results/
+vendor/fukamu-design-tokens/
+package-lock.json

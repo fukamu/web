@@ -1,0 +1,56 @@
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://cloudflareinsights.com; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/en/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/products/notes/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/en/products/notes/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/products/cycle/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/en/products/cycle/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/company/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/en/company/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/contact/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/en/contact/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/legal/privacy/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/en/legal/privacy/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/404.html
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Robots-Tag: noindex, nofollow
+
+/robots.txt
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sitemap.xml
+  Cache-Control: public, max-age=0, must-revalidate
+
+/_assets/*
+  Cache-Control: public, max-age=31536000, immutable

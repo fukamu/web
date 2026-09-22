@@ -1,0 +1,92 @@
+---
+import { Content as EnPrivacy, frontmatter as enFrontmatter } from '../content/legal/en/privacy.md';
+import { Content as JaPrivacy, frontmatter as jaFrontmatter } from '../content/legal/ja/privacy.md';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import type { Locale } from '../data/site.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = getMessages(locale);
+const frontmatter = locale === 'ja' ? jaFrontmatter : enFrontmatter;
+const labels =
+  locale === 'ja'
+    ? ['サービス', '送信先', '送信される情報', '利用目的', '公式情報']
+    : ['Service', 'Recipient', 'Information sent', 'Purpose', 'Official information'];
+---
+
+<SiteLayout
+  locale={locale}
+  routeKey="privacy"
+  title={copy.meta.privacy.title}
+  description={copy.meta.privacy.description}
+>
+  <article class="page-article">
+    <header class="page-header content-shell reading-width">
+      <p class="eyebrow">Privacy</p>
+      <h1>{copy.footer.privacy}</h1>
+      <p class="secondary-text">
+        {locale === 'ja' ? '文書状態' : 'Document status'}: {frontmatter.status} · {locale === 'ja' ? '更新' : 'Updated'}: {frontmatter.updatedOn}
+      </p>
+      {
+        locale === 'en' && (
+          <p class="translation-note">
+            This English version is a reference translation. The Japanese version is authoritative.
+          </p>
+        )
+      }
+    </header>
+
+    <div class="content-shell reading-width prose article-sections">
+      {locale === 'ja' ? <JaPrivacy /> : <EnPrivacy />}
+
+      <section aria-labelledby="analytics-title">
+        <h2 id="analytics-title">
+          {locale === 'ja' ? 'アクセス解析・外部送信' : 'Web analytics and external transmission'}
+        </h2>
+        <p>
+          {
+            locale === 'ja'
+              ? '当サイトでは、公開時にCloudflare Web Analyticsを手動で1回だけ読み込む予定です。この解析はCookieやlocalStorage等のクライアント側状態を利用せず、IPアドレスやUser Agent等による個人のフィンガープリントを行わないとCloudflareが説明しています。解析が遮断されても、ページ閲覧とリンク操作は利用できます。'
+              : 'When published, this site plans to load Cloudflare Web Analytics once through a manual embed. Cloudflare states that it does not use client-side state such as cookies or localStorage and does not fingerprint individuals through IP addresses, User Agent strings, or other data. Pages and links remain usable if analytics is blocked.'
+          }
+        </p>
+        <div class="data-table-wrapper">
+          <table>
+            <thead>
+              <tr>{labels.map((label) => <th scope="col">{label}</th>)}</tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label={labels[0]}>Cloudflare Web Analytics</td>
+                <td data-label={labels[1]}>Cloudflare, Inc.</td>
+                <td data-label={labels[2]}>
+                  {
+                    locale === 'ja'
+                      ? '閲覧ページのホスト・パス、参照元、国、端末種別、ブラウザー、OS、ナビゲーション種別、ページ読込時間、LCP・INP・CLSと影響要素等'
+                      : 'Host and path viewed, referrer, country, device type, browser, operating system, navigation type, page-load timing, LCP, INP, CLS, and affected elements'
+                  }
+                </td>
+                <td data-label={labels[3]}>
+                  {
+                    locale === 'ja'
+                      ? '当社：閲覧状況と表示性能の把握・改善。Cloudflare：当社への解析機能提供とサービス運用。'
+                      : 'FUKAMU: understand and improve site use and performance. Cloudflare: provide analytics to FUKAMU and operate the service.'
+                  }
+                </td>
+                <td data-label={labels[4]}>
+                  <a href="https://developers.cloudflare.com/web-analytics/data-metrics/data-origin-and-collection/">
+                    Cloudflare Web Analytics
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </article>
+</SiteLayout>

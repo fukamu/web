@@ -1,0 +1,14 @@
+node_modules/
+.astro/
+dist/
+.wrangler/
+.wrangler-config/
+artifacts/
+release-dist/
+recovery-dist/
+playwright-report/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
