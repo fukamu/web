@@ -15,7 +15,7 @@
 
 ## CI/CD
 
-`Quality`はPRと対象branchで静的検証、token/content contract、build、容量、Wrangler dry-run、Playwright/axe、画面証跡を実行します。release contentが揃ったときだけ全URL・全端末・各5回のHTTPSラボLighthouseを追加実行します。
+`Quality`はPRと対象branchで静的検証、token/content contract、build、容量、Wrangler dry-run、Playwright/axe、画面証跡を実行します。release contentが揃ったときだけ全URL・全端末・各5回のHTTPSラボLighthouseを追加実行します。main向けPRでは`Production release readiness`も必須で、release contentが不足したままmainへ進むことを防ぎます。
 
 main更新では`Release production site`が同じconcurrency group内で次を直列実行します。
 
@@ -36,7 +36,7 @@ main更新では`Release production site`が同じconcurrency group内で次を�
 
 ## 保護設定
 
-mainにはPull Request必須、`Validate, build, and browser-test`と公開準備完了後の`Full Lighthouse release gate`必須、会話解決必須、force push / deletion禁止を設定します。管理者による迂回は緊急時だけとし記録します。production-siteには必要なreviewerとmain限定deployment branchを設定します。
+mainにはPull Request必須、`Validate, build, and browser-test`、`Production release readiness`、`Full Lighthouse release gate`必須、会話解決必須、force push / deletion禁止を設定します。管理者による迂回は緊急時だけとし記録します。production-siteには必要なreviewerとmain限定deployment branchを設定します。
 
 ## ローカルHTTPSラボ
 
