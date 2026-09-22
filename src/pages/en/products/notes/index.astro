@@ -1,0 +1,6 @@
+---
+import ProductPage from '../../../../components/ProductPage.astro';
+import { productById } from '../../../../data/products.ts';
+---
+
+<ProductPage locale="en" product={productById('notes')} />

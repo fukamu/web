@@ -1,0 +1,26 @@
+---
+import { pathFor } from '../data/routes.ts';
+import type { Locale } from '../data/site.ts';
+import type { Product } from '../data/products.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+  product: Product;
+}
+
+const { locale, product } = Astro.props;
+const copy = getMessages(locale);
+---
+
+<article class="product-summary">
+  <div class="product-summary__heading">
+    <p class="status-label">{copy.status[product.status]}</p>
+    <h3>{product.name}</h3>
+  </div>
+  <p>{product.summary[locale]}</p>
+  <p class="secondary-text">{product.audience[locale]}</p>
+  <a class="text-link" href={pathFor(locale, product.id)}>
+    {product.name}{locale === 'ja' ? 'を' : ': '}{copy.actions.details}
+  </a>
+</article>

@@ -1,0 +1,275 @@
+name: Release production site
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-site-release
+  cancel-in-progress: false
+
+env:
+  ASTRO_TELEMETRY_DISABLED: "1"
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  verify:
+    name: Verify main SHA and freeze artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out the main SHA being released
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Install locked dependencies and Chromium
+        run: |
+          npm ci
+          npm exec -- playwright install --with-deps chromium
+          command -v certutil || (sudo apt-get update && sudo apt-get install --yes libnss3-tools)
+
+      - name: Record the pinned Chrome path
+        shell: bash
+        run: |
+          chrome_path="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")"
+          echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
+
+      - name: Run source and release-content gates
+        run: |
+          npm run check
+          npm run check:release-artifact
+          npm run check:release-content
+
+      - name: Build once and verify the exact dist
+        run: |
+          npm run build
+          npm run check:release-content -- --dist
+          npm run check:budgets
+          npm run test:site
+          npm run test:visual
+
+      - name: Run the complete HTTPS lab Lighthouse gate
+        run: |
+          npm run test:lighthouse
+          npm run report:lighthouse
+
+      - name: Download the preceding successful production artifact
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          previous_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].id // empty')"
+          if [[ -n "$previous_run" ]]; then
+            gh run download "$previous_run" --repo "$GITHUB_REPOSITORY" --name production-dist --dir previous-payload
+            mv previous-payload/release-dist previous-dist
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "run_id=$previous_run" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Assemble current and recovery artifacts
+        shell: bash
+        run: |
+          if [[ -d previous-dist ]]; then
+            export PREVIOUS_DIST="$PWD/previous-dist"
+          fi
+          node scripts/prepare-release.mjs
+          node scripts/verify-release-artifact.mjs
+        env:
+          RELEASE_DIST: release-dist
+
+      - name: Upload immutable production input
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-dist
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            release-dist
+            artifacts/release/manifest.json
+
+      - name: Upload the verified recovery input
+        if: steps.previous.outputs.found == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-recovery
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            recovery-dist
+            artifacts/release/manifest.json
+
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-evidence-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 90
+          path: |
+            artifacts/budgets
+            artifacts/lighthouse
+            artifacts/release
+            artifacts/screenshots
+            playwright-report
+            test-results
+
+  deploy:
+    name: Deploy frozen artifact to Cloudflare Workers
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production-site
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    outputs:
+      deployed: ${{ steps.freshness.outputs.fresh }}
+    steps:
+      - name: Check out deployment tooling at the release SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Refuse to publish an obsolete main SHA
+        id: freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          if [[ "$current_main" == "$GITHUB_SHA" ]]; then
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping obsolete release SHA $GITHUB_SHA; current main is $current_main."
+          fi
+
+      - name: Install locked deployment tooling
+        if: steps.freshness.outputs.fresh == 'true'
+        run: npm ci
+
+      - name: Download the frozen production input
+        if: steps.freshness.outputs.fresh == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: production-dist
+          path: frozen
+
+      - name: Verify artifact and deployment configuration
+        if: steps.freshness.outputs.fresh == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+          RELEASE_DIST: dist
+          RELEASE_MANIFEST: frozen/artifacts/release/manifest.json
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]]
+          test -n "$SITE_BASE_URL"
+          mv frozen/release-dist dist
+          node scripts/verify-release-artifact.mjs
+          node --input-type=module -e "import { site } from './src/data/site.ts'; if (process.env.SITE_BASE_URL !== site.origin) throw new Error('SITE_BASE_URL differs from site.origin');"
+
+      - name: Deploy the verified artifact
+        if: steps.freshness.outputs.fresh == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          XDG_CONFIG_HOME: ${{ runner.temp }}/xdg
+        shell: bash
+        run: |
+          mkdir -p artifacts/deploy
+          set -o pipefail
+          npm exec -- wrangler deploy --strict --message "git ${GITHUB_SHA}" 2>&1 | tee artifacts/deploy/wrangler-output.txt
+          printf '%s\n' "$GITHUB_SHA" > artifacts/deploy/git-sha.txt
+
+      - name: Upload Cloudflare deployment record
+        if: always() && steps.freshness.outputs.fresh == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: deployment-record-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 90
+          path: artifacts/deploy
+
+  smoke:
+    name: Verify the production URL
+    needs: deploy
+    if: needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: production-site
+    permissions:
+      contents: read
+    env:
+      SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+    steps:
+      - name: Check out the deployed SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Install locked dependencies and Chromium
+        run: |
+          npm ci
+          npm exec -- playwright install --with-deps chromium
+
+      - name: Record the pinned Chrome path
+        shell: bash
+        run: |
+          chrome_path="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")"
+          echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
+
+      - name: Run production smoke tests
+        run: npm run test:smoke
+
+      - name: Measure every production page five times
+        env:
+          LIGHTHOUSE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+          LIGHTHOUSE_OUTPUT: artifacts/lighthouse-production
+        run: |
+          npm run test:lighthouse
+          npm run report:lighthouse
+
+      - name: Upload production verification
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-verification-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 90
+          path: |
+            artifacts/lighthouse-production
+            playwright-report
+            test-results

@@ -1,0 +1,104 @@
+name: Restore verified production artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Successful release workflow run containing production-recovery
+        required: true
+        type: string
+      expected_release_sha:
+        description: Git SHA recorded by that release run
+        required: true
+        type: string
+      confirm_legal_content_current:
+        description: Type CONFIRMED after checking that restoring this legal content is still accurate
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-site-release
+  cancel-in-progress: false
+
+env:
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  restore:
+    name: Restore pre-verified recovery artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production-site
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    steps:
+      - name: Require explicit legal-content confirmation
+        shell: bash
+        run: test "${{ inputs.confirm_legal_content_current }}" = "CONFIRMED"
+
+      - name: Validate the source release run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.release_run_id }}
+          EXPECTED_SHA: ${{ inputs.expected_release_sha }}
+        shell: bash
+        run: |
+          conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.conclusion')"
+          workflow_path="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.path')"
+          head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.head_sha')"
+          test "$conclusion" = "success"
+          test "$workflow_path" = ".github/workflows/release.yml"
+          test "$head_sha" = "$EXPECTED_SHA"
+
+      - name: Check out trusted rollback tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.expected_release_sha }}
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Install locked deployment tooling
+        run: npm ci
+
+      - name: Download the pre-verified recovery artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "${{ inputs.release_run_id }}" --repo "$GITHUB_REPOSITORY" --name production-recovery --dir frozen
+
+      - name: Verify and restore the artifact
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RECOVERY_ARTIFACT: "1"
+          RELEASE_DIST: dist
+          RELEASE_MANIFEST: frozen/artifacts/release/manifest.json
+          XDG_CONFIG_HOME: ${{ runner.temp }}/xdg
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]]
+          mv frozen/recovery-dist dist
+          node scripts/verify-release-artifact.mjs
+          mkdir -p artifacts/rollback
+          set -o pipefail
+          npm exec -- wrangler deploy --strict --message "restore from release run ${{ inputs.release_run_id }}" 2>&1 | tee artifacts/rollback/wrangler-output.txt
+
+      - name: Upload restoration record
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rollback-record-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 90
+          path: artifacts/rollback

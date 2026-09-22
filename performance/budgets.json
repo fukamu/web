@@ -1,0 +1,56 @@
+{
+  "units": "uncompressed bytes; 1 KiB = 1024 bytes",
+  "types": {
+    "home": {
+      "html": 49152,
+      "css": 32768,
+      "firstPartyJs": 4096,
+      "images": 327680,
+      "fonts": 0,
+      "firstPartyTotal": 413696,
+      "requests": 12
+    },
+    "product": {
+      "html": 49152,
+      "css": 32768,
+      "firstPartyJs": 4096,
+      "images": 393216,
+      "fonts": 0,
+      "firstPartyTotal": 479232,
+      "requests": 10
+    },
+    "standard": {
+      "html": 49152,
+      "css": 32768,
+      "firstPartyJs": 4096,
+      "images": 40960,
+      "fonts": 0,
+      "firstPartyTotal": 126976,
+      "requests": 8
+    },
+    "privacy": {
+      "html": 81920,
+      "css": 32768,
+      "firstPartyJs": 4096,
+      "images": 40960,
+      "fonts": 0,
+      "firstPartyTotal": 159744,
+      "requests": 8
+    }
+  },
+  "routes": {
+    "/": "home",
+    "/en/": "home",
+    "/products/notes/": "product",
+    "/en/products/notes/": "product",
+    "/products/cycle/": "product",
+    "/en/products/cycle/": "product",
+    "/company/": "standard",
+    "/en/company/": "standard",
+    "/contact/": "standard",
+    "/en/contact/": "standard",
+    "/legal/privacy/": "privacy",
+    "/en/legal/privacy/": "privacy",
+    "/404.html": "standard"
+  }
+}

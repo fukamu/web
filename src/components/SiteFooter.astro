@@ -1,0 +1,26 @@
+---
+import { pathFor } from '../data/routes.ts';
+import { displayCompanyName, site, type Locale } from '../data/site.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = getMessages(locale);
+const noticeHref =
+  site.company.publicNoticesUrl ?? `${pathFor(locale, 'company')}#public-notices`;
+---
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <p class="site-footer__name">{displayCompanyName(locale)}</p>
+    <nav aria-label={locale === 'ja' ? 'フッターナビゲーション' : 'Footer navigation'}>
+      <a href={pathFor(locale, 'privacy')}>{copy.footer.privacy}</a>
+      <a href={noticeHref}>{copy.footer.notices}</a>
+      <a href={pathFor(locale, 'contact')}>{copy.nav.contact}</a>
+    </nav>
+    <p class="site-footer__copyright">© {new Date().getUTCFullYear()} FUKAMU</p>
+  </div>
+</footer>

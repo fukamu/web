@@ -1,0 +1,66 @@
+---
+import ProductCard from './ProductCard.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { products } from '../data/products.ts';
+import { pathFor } from '../data/routes.ts';
+import type { Locale } from '../data/site.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = getMessages(locale);
+const intro =
+  locale === 'ja'
+    ? 'FUKAMUは、考えを深め、次の行動へつなげるための製品をつくっています。'
+    : 'FUKAMU creates products that help people deepen their thinking and connect it to their next action.';
+const productLead =
+  locale === 'ja'
+    ? '現在、2つの製品を一般提供に向けて準備しています。確認できた内容だけをご紹介します。'
+    : 'We are preparing two products for general availability. The descriptions below include only verified capabilities.';
+---
+
+<SiteLayout
+  locale={locale}
+  routeKey="home"
+  title={copy.meta.home.title}
+  description={copy.meta.home.description}
+>
+  <section class="intro-section">
+    <div class="content-shell reading-width">
+      <p class="eyebrow">FUKAMU</p>
+      <h1>{locale === 'ja' ? '考えを深め、行動を前へ。' : 'Deepen ideas. Move action forward.'}</h1>
+      <p class="lead">{intro}</p>
+    </div>
+  </section>
+
+  <section class="section" id="products" aria-labelledby="products-title">
+    <div class="content-shell">
+      <div class="section-heading reading-width">
+        <p class="eyebrow">Products</p>
+        <h2 id="products-title">{locale === 'ja' ? '製品' : 'Products'}</h2>
+        <p>{productLead}</p>
+      </div>
+      <div class="product-list">
+        {products.map((product) => <ProductCard locale={locale} product={product} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--subtle" aria-labelledby="company-title">
+    <div class="content-shell reading-width">
+      <p class="eyebrow">Company</p>
+      <h2 id="company-title">{locale === 'ja' ? 'FUKAMU株式会社について' : 'About FUKAMU株式会社'}</h2>
+      <p>
+        {
+          locale === 'ja'
+            ? '会社情報と電子公告の案内は、会社情報ページにまとめています。'
+            : 'Company information and public notice details are available on the company page.'
+        }
+      </p>
+      <a class="action-link" href={pathFor(locale, 'company')}>{copy.nav.company}</a>
+    </div>
+  </section>
+</SiteLayout>

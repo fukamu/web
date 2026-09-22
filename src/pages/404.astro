@@ -1,0 +1,23 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { pathFor } from '../data/routes.ts';
+import { ja } from '../i18n/ja.ts';
+---
+
+<SiteLayout
+  locale="ja"
+  routeKey="home"
+  title={ja.meta.notFound.title}
+  description={ja.meta.notFound.description}
+  robots="noindex,nofollow"
+>
+  <section class="page-header content-shell reading-width not-found">
+    <p class="eyebrow">404</p>
+    <h1>ページが見つかりません</h1>
+    <p>The requested page could not be found.</p>
+    <div class="not-found__links">
+      <a class="action-link" href={pathFor('ja', 'home')}>日本語ホームへ</a>
+      <a class="text-link" href={pathFor('en', 'home')} hreflang="en">English home</a>
+    </div>
+  </section>
+</SiteLayout>
