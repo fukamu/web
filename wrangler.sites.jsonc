@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fukamu-web-sites",
+  "main": "./src/sites-worker.ts",
+  "compatibility_date": "2026-09-22",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./.sites-static",
+    "html_handling": "force-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": true,
+  },
+}

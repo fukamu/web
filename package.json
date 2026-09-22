@@ -18,6 +18,7 @@
     "check:release-artifact": "node scripts/check-release-artifact.mjs",
     "check:release-content": "node scripts/check-release-content.mjs",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "build:sites": "node scripts/clean-sites-build.mjs && ASTRO_TELEMETRY_DISABLED=1 astro build --outDir .sites-static && XDG_CONFIG_HOME=.wrangler-config vite build --config vite.sites.config.ts && node scripts/clean-sites-vite-state.mjs",
     "check:budgets": "node scripts/check-budgets.mjs",
     "test:site": "npm run build && playwright test tests/site.spec.ts",
     "test:visual": "playwright test tests/visual.spec.ts",
@@ -29,12 +30,14 @@
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "@axe-core/playwright": "4.13.0",
+    "@cloudflare/vite-plugin": "1.57.3",
+    "@openai/sites-vite-plugin": "0.2.0",
     "@playwright/test": "1.63.0",
     "astro": "7.3.3",
     "chrome-launcher": "1.2.1",
     "lighthouse": "13.5.0",
     "prettier": "3.9.8",
     "typescript": "6.0.3",
-    "wrangler": "4.136.2"
+    "wrangler": "4.136.3"
   }
 }
