@@ -1,0 +1,48 @@
+{
+  "name": "@fukamu/company-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.21.0",
+    "npm": "11.19.0"
+  },
+  "packageManager": "npm@11.19.0",
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && ASTRO_TELEMETRY_DISABLED=1 astro check && npm run test:launch-gate && npm run check:tokens && npm run check:content",
+    "check:tokens": "node scripts/check-design-tokens.mjs",
+    "check:content": "node scripts/check-content.mjs",
+    "check:release-artifact": "node scripts/check-release-artifact.mjs",
+    "check:release-content": "node scripts/check-release-content.mjs",
+    "test:launch-gate": "node --test tests/launch-gate.test.ts",
+    "test:launch-gate:e2e": "playwright test --config playwright.launch-gate.config.ts",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "build:sites": "node scripts/clean-sites-build.mjs && ASTRO_TELEMETRY_DISABLED=1 astro build --outDir .sites-static && XDG_CONFIG_HOME=.wrangler-config vite build --config vite.sites.config.ts && node scripts/clean-sites-vite-state.mjs",
+    "check:budgets": "node scripts/check-budgets.mjs",
+    "test:site": "npm run build && playwright test tests/site.spec.ts",
+    "test:visual": "playwright test tests/visual.spec.ts",
+    "test:smoke": "playwright test tests/smoke.spec.ts",
+    "test:lighthouse": "node scripts/lighthouse-run.mjs",
+    "report:lighthouse": "node scripts/check-lighthouse-summary.mjs && node scripts/lighthouse-summary.mjs",
+    "serve:lab": "node scripts/serve-lab.mjs"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@axe-core/playwright": "4.13.0",
+    "@cloudflare/vite-plugin": "1.57.3",
+    "@openai/sites-vite-plugin": "0.2.0",
+    "@playwright/test": "1.63.0",
+    "astro": "7.3.3",
+    "chrome-launcher": "1.2.1",
+    "lighthouse": "13.5.0",
+    "prettier": "3.9.8",
+    "typescript": "6.0.3",
+    "wrangler": "4.136.3"
+  },
+  "dependencies": {
+    "jose": "6.2.12"
+  }
+}

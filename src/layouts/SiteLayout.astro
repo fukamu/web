@@ -1,0 +1,76 @@
+---
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import {
+  alternateLocale,
+  pathFor,
+  type RouteKey,
+} from '../data/routes.ts';
+import {
+  isProductionPublication,
+  site,
+  type Locale,
+} from '../data/site.ts';
+import { getMessages } from '../i18n/index.ts';
+import '../../vendor/fukamu-design-tokens/0.1.0/css/tokens.css';
+import '../styles/site.css';
+
+interface Props {
+  locale: Locale;
+  routeKey: RouteKey;
+  title: string;
+  description: string;
+  robots?: string;
+}
+
+const { locale, routeKey, title, description, robots } = Astro.props;
+const copy = getMessages(locale);
+const otherLocale = alternateLocale(locale);
+const origin = site.origin ?? Astro.site?.origin ?? 'https://preview.invalid';
+const canonical = new URL(pathFor(locale, routeKey), origin);
+const alternate = new URL(pathFor(otherLocale, routeKey), origin);
+const xDefault = new URL(pathFor('ja', routeKey), origin);
+const robotsContent =
+  robots ?? (isProductionPublication ? 'index,follow' : 'noindex,nofollow');
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="robots" content={robotsContent} />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={locale === 'ja' ? 'ja_JP' : 'en_US'} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang={locale} href={canonical} />
+    <link rel="alternate" hreflang={otherLocale} href={alternate} />
+    <link rel="alternate" hreflang="x-default" href={xDefault} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">{copy.skip}</a>
+    {!isProductionPublication && <p class="preview-banner">{copy.preview}</p>}
+    <SiteHeader locale={locale} routeKey={routeKey} />
+    <main id="main-content" tabindex="-1">
+      <slot />
+    </main>
+    <SiteFooter locale={locale} />
+    {
+      isProductionPublication && site.analytics.beaconToken && (
+        <script
+          is:inline
+          defer
+          src={site.analytics.scriptUrl}
+          data-cf-beacon={JSON.stringify({ token: site.analytics.beaconToken })}
+        />
+      )
+    }
+  </body>
+</html>

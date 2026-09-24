@@ -1,0 +1,69 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { pathFor } from '../data/routes.ts';
+import type { Locale } from '../data/site.ts';
+import type { Product } from '../data/products.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+  product: Product;
+}
+
+const { locale, product } = Astro.props;
+const copy = getMessages(locale);
+const routeKey = product.id;
+---
+
+<SiteLayout
+  locale={locale}
+  routeKey={routeKey}
+  title={copy.meta[routeKey].title}
+  description={copy.meta[routeKey].description}
+>
+  <article class="page-article">
+    <header class="page-header content-shell reading-width">
+      <p class="status-label">{copy.status[product.status]}</p>
+      <h1>{product.name}</h1>
+      <p class="lead">{product.summary[locale]}</p>
+    </header>
+
+    <div class="content-shell reading-width article-sections">
+      <section aria-labelledby="audience-title">
+        <h2 id="audience-title">{locale === 'ja' ? 'こんな人へ' : 'Who it is for'}</h2>
+        <p>{product.audience[locale]}</p>
+      </section>
+
+      <section aria-labelledby="problem-title">
+        <h2 id="problem-title">{locale === 'ja' ? '向き合う課題' : 'The problem'}</h2>
+        <p>{product.problem[locale]}</p>
+      </section>
+
+      <section aria-labelledby="features-title">
+        <h2 id="features-title">{locale === 'ja' ? '確認済みの機能' : 'Verified capabilities'}</h2>
+        <ul class="feature-list">
+          {product.features[locale].map((feature) => <li>{feature}</li>)}
+        </ul>
+      </section>
+
+      <section class="availability-panel" aria-labelledby="availability-title">
+        <h2 id="availability-title">{locale === 'ja' ? '提供状態' : 'Availability'}</h2>
+        <p>{product.availabilityLabel[locale]}</p>
+        <p>
+          <strong>{locale === 'ja' ? '製品UIの確認済み言語：' : 'Verified product UI language: '}</strong>
+          {product.uiLanguages.join(', ')}
+        </p>
+        <p class="secondary-text">{product.legalReadiness.note[locale]}</p>
+        {
+          product.status === 'available' && (
+            <a class="action-link" href={product.officialUrl}>
+              {locale === 'ja' ? `${product.name}を使う` : `Open ${product.name}`}
+            </a>
+          )
+        }
+      </section>
+
+      <p><a class="text-link" href={pathFor(locale, 'home')}>{copy.actions.backHome}</a></p>
+    </div>
+  </article>
+</SiteLayout>

@@ -1,0 +1,157 @@
+name: Quality
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "integration/**"
+  push:
+    branches:
+      - main
+      - "integration/**"
+      - "codex/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ASTRO_TELEMETRY_DISABLED: "1"
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  validate:
+    name: Validate, build, and browser-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      release_ready: ${{ steps.release_ready.outputs.ready }}
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run static and contract checks
+        run: |
+          npm run check
+          npm run check:release-artifact
+
+      - name: Build the static site
+        run: npm run build
+
+      - name: Verify release-content state
+        id: release_ready
+        shell: bash
+        run: |
+          if npm run check:release-content -- --dist; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Release-only checks remain blocked; preview validation continues."
+          fi
+
+      - name: Check uncompressed budgets
+        run: npm run check:budgets
+
+      - name: Validate the Workers upload configuration
+        env:
+          XDG_CONFIG_HOME: ${{ runner.temp }}/xdg
+        run: npm exec -- wrangler deploy --dry-run
+
+      - name: Install pinned Playwright Chromium
+        run: npm exec -- playwright install --with-deps chromium
+
+      - name: Run page, accessibility, and delivery tests
+        run: npm run test:site
+
+      - name: Capture desktop and mobile evidence
+        run: npm run test:visual
+
+      - name: Upload preview and validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: preview-evidence-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            dist
+            artifacts/budgets
+            artifacts/screenshots
+            playwright-report
+            test-results
+
+  lighthouse:
+    name: Full Lighthouse release gate
+    needs: validate
+    if: needs.validate.outputs.release_ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Install locked dependencies and Chromium
+        run: |
+          npm ci
+          npm exec -- playwright install --with-deps chromium
+          command -v certutil || (sudo apt-get update && sudo apt-get install --yes libnss3-tools)
+
+      - name: Record the pinned Chrome path
+        shell: bash
+        run: |
+          chrome_path="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")"
+          echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
+
+      - name: Build and run all URL-device measurements
+        run: |
+          npm run build
+          npm run test:lighthouse
+          npm run report:lighthouse
+
+      - name: Upload every LHR and summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: artifacts/lighthouse
+
+  release-readiness:
+    name: Production release readiness
+    needs: validate
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every production value and release contract
+        env:
+          RELEASE_READY: ${{ needs.validate.outputs.release_ready }}
+        run: |
+          if [[ "$RELEASE_READY" != "true" ]]; then
+            echo "::error::Production release content is incomplete. Review the release-content notice in the validate job."
+            exit 1
+          fi

@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fukamu-web",
+  "main": "./src/worker.ts",
+  "compatibility_date": "2026-09-22",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "APP_ENVIRONMENT": "production",
+    "PUBLIC_ACCESS_ENABLED": "false",
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+    "html_handling": "force-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": true,
+  },
+}

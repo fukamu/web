@@ -1,0 +1,78 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { site, type Locale } from '../data/site.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = getMessages(locale);
+const pending = locale === 'ja' ? '公開前に正式情報を反映します' : 'To be added after formal verification';
+const fields = [
+  [locale === 'ja' ? '商号' : 'Legal name', site.company.legalName],
+  [locale === 'ja' ? '設立日' : 'Established', site.company.establishedOn ?? pending],
+  [locale === 'ja' ? '代表者' : 'Representative', site.company.representative ?? pending],
+  [locale === 'ja' ? '所在地' : 'Address', site.company.address ?? pending],
+] as const;
+---
+
+<SiteLayout
+  locale={locale}
+  routeKey="company"
+  title={copy.meta.company.title}
+  description={copy.meta.company.description}
+>
+  <article class="page-article">
+    <header class="page-header content-shell reading-width">
+      <p class="eyebrow">Company</p>
+      <h1>{copy.nav.company}</h1>
+      <p class="lead">
+        {
+          locale === 'ja'
+            ? 'FUKAMU株式会社の基本情報をご案内します。'
+            : 'Basic information about FUKAMU株式会社.'
+        }
+      </p>
+    </header>
+
+    <div class="content-shell reading-width article-sections">
+      <section aria-labelledby="profile-title">
+        <h2 id="profile-title">{locale === 'ja' ? '会社概要' : 'Company profile'}</h2>
+        <dl class="company-details">
+          {fields.map(([label, value]) => <><dt>{label}</dt><dd>{value}</dd></>)}
+          <dt>{locale === 'ja' ? 'お問い合わせ' : 'Contact'}</dt>
+          <dd>
+            {
+              site.company.publicEmail ? (
+                <a href={`mailto:${site.company.publicEmail}`}>{site.company.publicEmail}</a>
+              ) : (
+                pending
+              )
+            }
+          </dd>
+        </dl>
+      </section>
+
+      <section id="public-notices" aria-labelledby="notices-title">
+        <h2 id="notices-title">{copy.footer.notices}</h2>
+        {
+          site.company.publicNoticesUrl ? (
+            <p>
+              <a class="text-link" href={site.company.publicNoticesUrl}>
+                {locale === 'ja' ? 'freee電子公告で公告を確認する' : 'View public notices on freee'}
+              </a>
+            </p>
+          ) : (
+            <p>
+              {locale === 'ja'
+                ? 'freee電子公告で実際に発行された公開URLを確認後、ここに掲載します。'
+                : 'A verified public URL issued by freee will be added here before publication.'}
+            </p>
+          )
+        }
+      </section>
+    </div>
+  </article>
+</SiteLayout>

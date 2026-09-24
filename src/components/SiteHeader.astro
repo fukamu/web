@@ -1,0 +1,69 @@
+---
+import { alternateLocale, pathFor, type RouteKey } from '../data/routes.ts';
+import {
+  displayCompanyName,
+  site,
+  type Locale,
+} from '../data/site.ts';
+import { getMessages } from '../i18n/index.ts';
+
+interface Props {
+  locale: Locale;
+  routeKey: RouteKey;
+}
+
+const { locale, routeKey } = Astro.props;
+const copy = getMessages(locale);
+const otherLocale = alternateLocale(locale);
+const productsActive = routeKey === 'notes' || routeKey === 'cycle';
+---
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand-link" href={pathFor(locale, 'home')}>
+      {
+        site.brand.logo ? (
+          <img
+            src={site.brand.logo.path}
+            width={site.brand.logo.width}
+            height={site.brand.logo.height}
+            alt={site.brand.logo.alt[locale]}
+          />
+        ) : (
+          <span class="brand-text">{displayCompanyName(locale)}</span>
+        )
+      }
+    </a>
+
+    <nav class="primary-nav" aria-label={copy.navLabel}>
+      <a
+        href={pathFor(locale, 'home')}
+        aria-current={routeKey === 'home' ? 'page' : undefined}
+      >
+        {copy.nav.home}
+      </a>
+      <a
+        href={`${pathFor(locale, 'home')}#products`}
+        aria-current={productsActive ? 'page' : undefined}
+      >
+        {copy.nav.products}
+      </a>
+      <a
+        href={pathFor(locale, 'company')}
+        aria-current={routeKey === 'company' ? 'page' : undefined}
+      >
+        {copy.nav.company}
+      </a>
+      <a
+        href={pathFor(locale, 'contact')}
+        aria-current={routeKey === 'contact' ? 'page' : undefined}
+      >
+        {copy.nav.contact}
+      </a>
+    </nav>
+
+    <a class="language-link" href={pathFor(otherLocale, routeKey)} hreflang={otherLocale}>
+      {copy.switchLanguage}
+    </a>
+  </div>
+</header>
