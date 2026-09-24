@@ -251,10 +251,29 @@ jobs:
           chrome_path="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")"
           echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
 
-      - name: Run production smoke tests
+      - name: Read the deployed Launch Gate state
+        id: launch_gate
+        shell: bash
+        run: |
+          public_enabled="$(node --input-type=module -e '
+            const response = await fetch(new URL("/api/launch-status", process.env.SITE_BASE_URL));
+            if (!response.ok) throw new Error(`launch-status returned ${response.status}`);
+            const value = await response.json();
+            if (typeof value.publicAccessEnabled !== "boolean") throw new Error("invalid launch-status payload");
+            process.stdout.write(String(value.publicAccessEnabled));
+          ')"
+          echo "public_enabled=$public_enabled" >> "$GITHUB_OUTPUT"
+
+      - name: Verify closed production denies an unauthenticated browser
+        if: steps.launch_gate.outputs.public_enabled == 'false'
+        run: npm exec -- playwright test tests/launch-gate.production.spec.ts
+
+      - name: Run general-availability production smoke tests
+        if: steps.launch_gate.outputs.public_enabled == 'true'
         run: npm run test:smoke
 
       - name: Measure every production page five times
+        if: steps.launch_gate.outputs.public_enabled == 'true'
         env:
           LIGHTHOUSE_BASE_URL: ${{ vars.SITE_BASE_URL }}
           LIGHTHOUSE_OUTPUT: artifacts/lighthouse-production
