@@ -13,6 +13,54 @@
 
 プライバシー文案はコードが生成したことを法的妥当性の根拠にせず、実際の取扱い、Cloudflare契約・設定、公開日を確認して承認します。
 
+## Production Launch Gate
+
+本番Workerは`PUBLIC_ACCESS_ENABLED=false`でdeployでき、一般公開とは独立している。通常のFeature Flagではなく、Static Assetsを含むサービス全体の認可境界である。Source of Truthは、Cloudflare Accessが署名した現在Userのapplication token `sub`、`wrangler.jsonc`の公開flag、Worker secret `LAUNCH_ALLOWED_USER_IDS_JSON`である。
+
+### 初期設定
+
+実際の本番hostname、Cloudflare Zero Trust team domain、Access application AUD、利用者は未確認のため、値をコードへ仮置きしない。担当者は次を行う。
+
+1. 本番hostnameの`/__launch-auth*`だけを対象とするSelf-hosted Cloudflare Access applicationを作る。認証候補を絞るAccess policyを設定し、最終認可はWorker allowlistに残す。
+2. Access applicationのCookie Path Attributeを無効にして、application domainの`CF_Authorization` cookieが`/__launch-auth`以外にも送られるようにする。HttpOnlyを有効、SameSiteを`Lax`にし、閉鎖状態の実Browserで再ログインを確認する。
+3. Worker作成後、確認済みの値を標準入力から設定する。shell historyやRepositoryへ値を残さない。
+
+```sh
+printf '%s' 'https://<verified-team>.cloudflareaccess.com' | npm exec -- wrangler secret put CF_ACCESS_TEAM_DOMAIN
+printf '%s' '<verified-application-aud>' | npm exec -- wrangler secret put CF_ACCESS_AUD
+printf '%s' '[]' | npm exec -- wrangler secret put LAUNCH_ALLOWED_USER_IDS_JSON
+```
+
+設定前・設定不正時はWorkerが`503`でfail closedになる。`Cf-Access-Jwt-Assertion` / `CF_Authorization`は署名、issuer、audience、有効期限をWorker内で検証する。email、query、Client送信の`user_id`は認可に使わない。
+
+### allowlist操作
+
+Cloudflare側で検証したapplication tokenの`sub`だけを登録する。emailや推測したIDを入れない。追加・削除は常にallowlist全体をJSON配列として置換し、変更後に対象Userと未許可Userの両方でSmoke Testする。
+
+```sh
+printf '%s' '["<verified-access-sub>"]' | npm exec -- wrangler secret put LAUNCH_ALLOWED_USER_IDS_JSON
+printf '%s' '[]' | npm exec -- wrangler secret put LAUNCH_ALLOWED_USER_IDS_JSON
+```
+
+Workerは各requestで現行allowlistを照合するため、削除したUserを過去の判定cacheで通さない。許可中のpage / assetと`GET /api/launch-status`は`Cache-Control: private, no-store`、`Vary: Cookie, Cf-Access-Jwt-Assertion`を返す。allowlist自体や他Userの状態は返さない。
+
+### Closed production Smoke Test
+
+本番変更を行わない隔離Browser profileを使い、次を記録する。
+
+1. 未認証Browserでpageとassetの直接URLが`403`、`/api/launch-status`が`publicAccessEnabled=false`、`userAllowed=false`、`canAccess=false`である。
+2. allowlist Userで`/__launch-auth`からAccessへログインし、元のpageへ戻り、statusが`false / true / true`になる。
+3. `/__launch-logout`を開き、Cloudflare Accessのapplication logoutを経由して`CF_Authorization` cookieが失効し、再度pageが`403`になることを確認する。その後、同じUserで再ログインできることを確認する。
+4. 全page、trailing-slash、404、言語切替、再読込を確認する。WebにはCRUD、決済、会員DBがないため追加しない。
+5. 別Browser profileと別端末で未許可Userが拒否され、許可UserのHTML / statusが共有されないことを確認する。
+6. Worker logにJWT、cookie、allowlist、User IDを出していないことを確認する。
+
+自動release workflowはGateが閉じている場合、未認証側のdeny Smoke Testだけを実行し、公開pageのLighthouseを行わない。許可Userの対話的Access認証は上記手順で実施し、Issue / PR / deployment IDへ証跡を添付する。
+
+### Closed Betaから一般公開
+
+Closed Betaでは確認済み`sub`だけをallowlistへ追加する。一般公開は`wrangler.jsonc`の`PUBLIC_ACCESS_ENABLED`を文字列`"true"`へ変更する専用Pull Requestで行い、通常のreview / CI / deployを通す。公開後は未認証`GET /api/launch-status`が`publicAccessEnabled=true`、`canAccess=true`であること、通常のpublic cache policyとLighthouseが復帰したことを確認する。切戻しは同じfieldを`"false"`へ戻す明示的なPull Requestとし、Access設定・開発者allowlistを維持する。
+
 ## CI/CD
 
 `Quality`はPRと対象branchで静的検証、token/content contract、build、容量、Wrangler dry-run、Playwright/axe、画面証跡を実行します。release contentが揃ったときだけ全URL・全端末・各5回のHTTPSラボLighthouseを追加実行します。main向けPRでは`Production release readiness`も必須で、release contentが不足したままmainへ進むことを防ぎます。

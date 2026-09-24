@@ -3,6 +3,8 @@
 ## 自動検証
 
 - `npm run check`: format、Astro / TypeScript、vendored tokenの8ファイル・manifest SHA、内容contract
+- `npm run test:launch-gate`: 公開/allowlistの4状態、JWT署名・issuer・audience、未認証・存在しないUser・設定異常・直接request・cache境界
+- `npm run test:launch-gate:e2e`: Production相当Workerで未許可Browser、直接page / asset request、status API、JavaScript無効画面を確認
 - `npm run check:release-artifact`: 現行と直前版のHTML・header境界、参照hash assetの持越し、未参照旧assetの除外、復旧成果物
 - `npm run build`: 日英12ページ、404、robots、sitemapの静的生成
 - `npm run check:budgets`: route別の非圧縮byte数、request数、JS / image / font予算
@@ -21,6 +23,8 @@
 - ロゴ正本反映後、寸法、alt、favicon、OGPで誤認・ぼけ・レイアウトシフトがない
 
 ## 公開後確認
+
+Production Launch Gateが閉じている間は、まず未認証Browserで全page / assetが`403`、`GET /api/launch-status`が`canAccess: false`、全応答が`private, no-store`であることを自動確認する。次に、allowlistへ登録した実Userの隔離Browserで[運用手順のSmoke Test](operations.md#closed-production-smoke-test)を完了する。許可Userの結果が別Browserへcache共有されないことも確認する。
 
 - 本番HTTPSで全ページ200、未知URL404、拡張子なしURLのtrailing slash転送
 - Content-Type、gzip / Brotli、ETag / 304、HTML再検証、hash asset immutable cache

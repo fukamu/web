@@ -22,6 +22,7 @@ npm run build
 npm run check:budgets
 npm run test:site
 npm run test:visual
+npm run test:launch-gate:e2e
 npm run check:release-content
 ```
 
@@ -36,6 +37,12 @@ SITES_ORIGIN=https://<Sitesから発行されたURL> npm run build:sites
 ```
 
 成果物は`dist/client`（静的ファイル）と`dist/server/index.js`（Static Assetsへ委譲するWorker）へ生成されます。Sitesへの配置は`publicationStatus: "draft"`、検索除外、公開前バナー、`check:release-content`の停止条件を変更しません。
+
+## Production Launch Gate
+
+Cloudflare本番Workerは、一般公開とデプロイを分離するProduction Launch Gateを持ちます。`wrangler.jsonc`の`PUBLIC_ACCESS_ENABLED`が`false`の間は、Cloudflare Accessが署名した現在Userの`sub`がWorker secretのallowlistにある場合だけ静的ページとassetへ到達できます。判定は`src/worker.ts`でAssets bindingより前に行い、Client指定のUser IDやFrontend状態は使用しません。
+
+通常の機能flagとは別責務です。設定欠落・不正値・JWT検証失敗は公開へfallbackせず、`GET /api/launch-status`を含めてprivate / no-storeで応答します。OpenAI SitesプレビューはこのWorkerを使用せず、既存の所有者限定プレビュー境界を維持します。設定、allowlist操作、段階公開、Smoke Testは[運用手順](docs/operations.md#production-launch-gate)を参照してください。
 
 ## 構成
 

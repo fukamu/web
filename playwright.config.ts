@@ -7,7 +7,7 @@ const webServer = externalBaseUrl
   : {
       webServer: {
         command:
-          "WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=.wrangler-config npm exec -- wrangler dev --local --ip 127.0.0.1 --port 8788",
+          "WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=.wrangler-config npm exec -- wrangler dev --local --ip 127.0.0.1 --port 8788 --var APP_ENVIRONMENT:development",
         url: "http://127.0.0.1:8788/",
         reuseExistingServer: !process.env.CI,
         timeout: 60_000,
